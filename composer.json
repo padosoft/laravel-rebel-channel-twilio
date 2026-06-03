@@ -1,11 +1,14 @@
 {
   "name": "padosoft/laravel-rebel-channel-twilio",
-  "description": "Provider Twilio (Verify SMS/WhatsApp/Voice, Fraud Guard, webhook) per Laravel Rebel.",
+  "description": "Twilio provider for Laravel Rebel Channels: phone verification via Twilio Verify (SMS/WhatsApp/voice), message delivery, and signed delivery-status webhooks. Part of padosoft/laravel-rebel-*.",
   "license": "MIT",
   "keywords": [
     "laravel",
     "authentication",
-    "security",
+    "twilio",
+    "verify",
+    "sms",
+    "whatsapp",
     "padosoft",
     "rebel"
   ],
@@ -22,7 +25,9 @@
     "illuminate/contracts": "^12.0|^13.0",
     "illuminate/support": "^12.0|^13.0",
     "spatie/laravel-package-tools": "^1.92",
-    "padosoft/laravel-rebel-core": "^0.1"
+    "padosoft/laravel-rebel-core": "^0.1",
+    "padosoft/laravel-rebel-channels": "^0.1",
+    "twilio/sdk": "^8.3"
   },
   "require-dev": {
     "larastan/larastan": "^3.0",
@@ -31,6 +36,10 @@
     "pestphp/pest": "^4.0",
     "pestphp/pest-plugin-laravel": "^4.0"
   },
+  "repositories": [
+    { "type": "vcs", "url": "https://github.com/padosoft/laravel-rebel-core" },
+    { "type": "vcs", "url": "https://github.com/padosoft/laravel-rebel-channels" }
+  ],
   "autoload": {
     "psr-4": {
       "Padosoft\\Rebel\\Channel\\Twilio\\": "src/"
@@ -51,7 +60,12 @@
   "scripts": {
     "test": "pest",
     "phpstan": "phpstan analyse --memory-limit=512M",
-    "pint": "pint"
+    "pint": "pint",
+    "check": [
+      "pint --test",
+      "@phpstan",
+      "@test"
+    ]
   },
   "config": {
     "sort-packages": true,
