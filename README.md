@@ -77,19 +77,22 @@ and [`padosoft/laravel-rebel-channels`](https://github.com/padosoft/laravel-rebe
 
 Sending an OTP with Twilio, three ways:
 
-| Capability | **Rebel + this package** | Twilio Verify SDK (direct) | Raw Twilio SMS + your own OTP |
-|---|:---:|:---:|:---:|
-| Send/check a code via Twilio | ✅ | ✅ | ➖ (you build OTP logic) |
-| You never store/generate the OTP | ✅ | ✅ | ❌ |
-| Anti toll-fraud / IRSF guard | ✅ | ❌ | ❌ |
-| Per-number rate limit + bot gate | ✅ | ❌ | ❌ |
-| **Provider fallback** to another vendor | ✅ | ❌ | ❌ |
-| Signed, phone-bound reference (anti replay) | ✅ | ❌ | ❌ |
-| Unified audit trail (number HMAC'd) | ✅ | ❌ | ❌ |
-| Graceful failure → router fallback | ✅ | ❌ | ❌ |
+| Capability | **Rebel + this package** | Shopify | Twilio Verify SDK (direct) | Raw Twilio SMS + your own OTP |
+|---|:---:|:---:|:---:|:---:|
+| Send/check a code via Twilio | ✅ | ❌ | ✅ | ➖ (you build OTP logic) |
+| You never store/generate the OTP | ✅ | ✅ | ✅ | ❌ |
+| Anti toll-fraud / IRSF guard | ✅ | ❌ | ❌ | ❌ |
+| Per-number rate limit + bot gate | ✅ | ➖ | ❌ | ❌ |
+| **Provider fallback** to another vendor | ✅ | ❌ | ❌ | ❌ |
+| Signed, phone-bound reference (anti replay) | ✅ | ❌ | ❌ | ❌ |
+| Unified audit trail (number HMAC'd) | ✅ | ❌ | ❌ | ❌ |
+| Graceful failure → router fallback | ✅ | ❌ | ❌ | ❌ |
 
-> Legend: ✅ built-in · ➖ partial · ❌ not available. Twilio Verify is excellent at delivery;
+> Legend: ✅ built-in · ➖ partial / hosted-only · ❌ not available. Twilio Verify is excellent at delivery;
 > this package keeps all of that and adds the Rebel fraud/routing/audit layer around it.
+> Shopify is a closed, hosted commerce platform: it sends its own customer OTPs but lets you
+> neither pick Twilio as the sender, self-host it, fall back across vendors, nor configure
+> its fraud controls — a black box, not a developer-facing verification library.
 
 ---
 
