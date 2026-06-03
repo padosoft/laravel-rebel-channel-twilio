@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Padosoft\Rebel\Channel\Twilio;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Facades\Route;
 use Padosoft\Rebel\Channel\Twilio\Contracts\TwilioVerifyGateway;
 use Padosoft\Rebel\Channel\Twilio\Gateway\RestTwilioVerifyGateway;
+use Padosoft\Rebel\Channel\Twilio\Http\Controllers\TwilioStatusController;
 use Padosoft\Rebel\Channel\Twilio\Verification\TwilioVerifyProvider;
 use Padosoft\Rebel\Channels\Routing\ProviderRegistry;
 use Spatie\LaravelPackageTools\Package;
@@ -33,6 +35,11 @@ final class RebelTwilioServiceProvider extends PackageServiceProvider
     {
         $config = $this->app->make(Repository::class);
 
+        // The delivery-status webhook is independent of the Verify provider: it only needs
+        // the auth token (to validate signatures), not a registered Verify service, so we
+        // register the route before the credentials gate below.
+        $this->registerWebhookRoute($config);
+
         // No credentials → nothing Twilio-backed is wired (an unauthenticated Client is
         // never constructed in the container).
         if (! $this->hasCredentials($config)) {
@@ -54,6 +61,25 @@ final class RebelTwilioServiceProvider extends PackageServiceProvider
                 new TwilioVerifyProvider($this->app->make(TwilioVerifyGateway::class), $this->channels($config)),
             );
         }
+    }
+
+    /**
+     * Register the POST status-callback route when the webhook is enabled. No auth
+     * middleware: Twilio posts server-to-server and the controller verifies the
+     * X-Twilio-Signature itself.
+     */
+    private function registerWebhookRoute(Repository $config): void
+    {
+        if ($config->get('rebel-channel-twilio.webhook.enabled', true) !== true) {
+            return;
+        }
+
+        Route::post(
+            $this->stringConfig($config, 'webhook.path') !== ''
+                ? $this->stringConfig($config, 'webhook.path')
+                : 'rebel/twilio/status',
+            TwilioStatusController::class,
+        )->name('rebel-twilio.status');
     }
 
     private function hasCredentials(Repository $config): bool

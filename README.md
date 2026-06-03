@@ -27,6 +27,7 @@
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [Delivery receipts (status webhook)](#delivery-receipts-status-webhook)
 - [Live tests against the real API](#live-tests-against-the-real-api)
 - [`.env.example`](#envexample)
 - [Security notes](#security-notes)
@@ -147,7 +148,7 @@ File `config/rebel-channel-twilio.php`:
 | `verify_service_sid` | `env(TWILIO_VERIFY_SERVICE_SID)` | Verify Service SID (`VA...`). |
 | `channels` | `['sms','whatsapp','voice']` | Which Rebel channels this provider may handle. |
 | `register_provider` | `true` | Auto-register into the Channels registry (when credentials exist). |
-| `webhook.enabled` | `false` | Enable a delivery-status callback endpoint. |
+| `webhook.enabled` | `true` | Register the delivery-status callback endpoint. |
 | `webhook.validate_signature` | `true` | Validate `X-Twilio-Signature` on the webhook. |
 | `webhook.path` | `rebel/twilio/status` | The webhook route path. |
 
@@ -184,6 +185,68 @@ To force Twilio specifically, set it first in the Channels fallback order:
 
 ---
 
+## Delivery receipts (status webhook)
+
+Twilio knows whether a message was actually **delivered**, **failed**, and exactly how much it
+**cost** — but only it knows, unless you let it call you back. This package ships a delivery-status
+webhook that turns those callbacks into Rebel audit events, so the admin panel's **Channel
+Performance** can show real delivered / failed rates and spend per channel.
+
+**What it records.** On each callback the endpoint writes one audit event (recipient number stored
+only as a keyed HMAC, never in clear):
+
+| Twilio status | Audit `event_type` |
+|---|---|
+| `delivered` | `channel.verification.delivered` |
+| `undelivered`, `failed` | `channel.verification.undelivered` |
+| `queued`, `sent`, `accepted`, … | `channel.verification.dispatched` |
+
+Each event carries `channel` (from the payload, default `sms`), `provider: 'twilio'`, the HMAC'd
+recipient, and a `metadata` object:
+
+```json
+{
+  "message_status": "delivered",
+  "price": 0.0075,
+  "price_unit": "USD",
+  "message_sid": "SMxxxxxxxx",
+  "error_code": null
+}
+```
+
+(Twilio quotes `Price` as a negative debit string; we store the **absolute** value so spend sums
+cleanly. `price`/`error_code` are `null` when absent.)
+
+**Set the StatusCallback URL.** In the Twilio console, point the status callback at your app:
+
+```
+https://<your-host>/rebel/twilio/status
+```
+
+- **Messaging**: set *StatusCallback* on the Messaging Service (or per message).
+- **Verify**: set the status webhook on the Verify Service.
+
+The endpoint is enabled by default (`REBEL_TWILIO_WEBHOOK=true`); set it to `false` to drop the
+route. The path is configurable via `webhook.path`.
+
+**Signature validation.** The route has **no auth middleware** — Twilio posts server-to-server.
+Instead, when `webhook.validate_signature` is true (default), every request must carry a valid
+`X-Twilio-Signature` (HMAC-SHA1 of the full URL + POST params, keyed with your Auth Token); a
+missing or forged signature is rejected with **403** and nothing is recorded. A malformed or empty
+payload is acknowledged with **204** and recorded as nothing, so a junk callback never 500s.
+
+```dotenv
+REBEL_TWILIO_WEBHOOK=true            # register the /rebel/twilio/status route
+REBEL_TWILIO_WEBHOOK_VALIDATE=true   # verify X-Twilio-Signature
+REBEL_TWILIO_WEBHOOK_PATH=rebel/twilio/status
+```
+
+> Build now, wire live later: the endpoint and its audit events exist today, so you can simulate
+> Twilio callbacks (the test suite does exactly that) and the admin aggregates real
+> delivered/cost data as soon as you set the StatusCallback URL in Twilio.
+
+---
+
 ## Live tests against the real API
 
 The offline suite uses a fake gateway. To exercise the **real** Twilio Verify API
@@ -211,7 +274,7 @@ TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 REBEL_TWILIO_REGISTER=true
 
-REBEL_TWILIO_WEBHOOK=false
+REBEL_TWILIO_WEBHOOK=true
 REBEL_TWILIO_WEBHOOK_VALIDATE=true
 REBEL_TWILIO_WEBHOOK_PATH=rebel/twilio/status
 
